@@ -1,0 +1,89 @@
+install.packages("ggplot2")
+install.packages("ggpubr")
+install.packages("gridExtra")
+library("ggplot2")
+library("ggpubr")
+install.packages("plotly")
+library("plotly")
+library(cowplot)
+project <- read.csv(file.choose())
+code <- data.frame(col1=c("Yes","No"),col2=c(1,0))
+project$Churn_rate <- code$col1[match(project$Churn,code$col2)]
+project$IntlPlan_rate <- code$col1[match(project$IntlPlan,code$col2)]
+project$VMailPlan_rate <- code$col1[match(project$VMailPlan,code$col2)]
+project$Churn <- NULL 
+project$IntlPlan <- NULL
+project$VMailPlan <- NULL 
+churns <- ggplotly(ggplot(data = project,aes(x=Churn_rate,fill = Churn_rate))+geom_bar(stat = "count")+ggtitle("Churn rate")+xlab("Yes_No")+ylab("Count of Churn rate"))
+state_churnrate <- as.data.frame(round(prop.table(table(project$State,project$Churn_rate),1)*100,1))
+colnames(state_churnrate) <- c("State","Churnrate","Frequency")
+state_churns <- ggplotly(ggplot(state_churnrate,aes(State,Frequency,fill=Churnrate))+geom_bar(position = "dodge",stat = "identity")+geom_text(data=state_churnrate, aes(x = State, label = paste0(Frequency,"%")),size=2,angle = 45)+theme(axis.text.x=element_text(angle=45, hjust=1,size = 6))+ggtitle("Statewise Churn rate")+xlab("State")+ylab("Churn rate frequency"))
+Intl_plan_rate <- as.data.frame(round(prop.table(table(Int_calls=project$IntlPlan_rate,Churn_rate=project$Churn_rate),1)*100,1))
+Intl_plan <- ggplotly(ggplot(Intl_plan_rate,aes(Int_calls,Freq,fill=Churn_rate))+geom_bar(position = "dodge",stat = "identity")+geom_text(data=Intl_plan_rate, aes(x = Int_calls, label = paste0(Freq,"%")),size=2,angle = 45)+theme(axis.text.x=element_text(angle=45, hjust=1,size = 6))+ggtitle("Churn rate across Int_calls")+xlab("Int_calls")+ylab("Churn rate frequency"))
+Day_calls_and_Day_charge <- ggplot(project,aes(x=Day.Calls,y=Day.Charge,color=State))+geom_point()+facet_wrap("State")
+Eve_calls_and_Eve_charge <- ggplot(project,aes(x=Eve.Calls,y=Eve.Charge,color=State))+geom_point()+facet_wrap("State")
+Night_calls_and_Night_charge <- ggplot(project,aes(x=Night.Calls,y=Night.Charge,color=State))+geom_point()+facet_wrap("State")
+#ggplot(project,aes(x=Night.Calls,y=Night.Charge,color=State))+geom_point()+facet_wrap("State")
+#subplot(churns,Intl_plan,state_churns,nrows = 2,heights = c(.4,.8),widths = c(1/3,1/3,1/3))
+# Customer leave the network when charge per call is more in a day --------
+  project$charge.per.call.Day <- project$Day.Charge/project$Day.Calls
+project$bin.charge.per.call.Day <- cut(project$charge.per.call.Day,5)
+Churn_rates.across.day.charge_per.call <- round(as.data.frame.matrix(prop.table((table(project$bin.charge.per.call.Day,project$Churn_rate)),1))*100,1)
+Churn_rates.across.day.charge_per.call$bins <- rownames(Churn_rates.across.day.charge_per.call)
+rownames(Churn_rates.across.day.charge_per.call) <- NULL
+No.of.day.customers <- aggregate(Phone ~ bin.charge.per.call.Day, project, function(x) length(unique(x)))
+Churn_rates.across.day.charge_per.call$No.of.customers <- No.of.day.customers$Phone[match(Churn_rates.across.day.charge_per.call$bins,No.of.day.customers$bin.charge.per.call.Day)]
+
+# Customer leave the network when charge per call is more in eve --------
+project$charge.per.call.Eve <- project$Eve.Charge/project$Eve.Calls
+project$bin.charge.per.call.Eve <- cut(project$charge.per.call.Eve,5)
+Churn_rates.across.Eve.charge_per.call <- round(as.data.frame.matrix(prop.table((table(project$bin.charge.per.call.Eve,project$Churn_rate)),1))*100,1)
+Churn_rates.across.Eve.charge_per.call$bins <- rownames(Churn_rates.across.Eve.charge_per.call)
+rownames(Churn_rates.across.Eve.charge_per.call) <- NULL
+No.of.Eve.customers <- aggregate(Phone ~ bin.charge.per.call.Eve, project, function(x) length(unique(x)))
+Churn_rates.across.Eve.charge_per.call$No.of.customers <- No.of.Eve.customers$Phone[match(Churn_rates.across.Eve.charge_per.call$bins,No.of.Eve.customers$bin.charge.per.call.Eve)]
+# Customer leave the network when charge per call is more in Night --------
+project$charge.per.call.Night <- project$Night.Charge/project$Night.Calls
+project$bin.charge.per.call.Night <- cut(project$charge.per.call.Night,5)
+Churn_rates.across.Night.charge_per.call <- round(as.data.frame.matrix(prop.table((table(project$bin.charge.per.call.Night,project$Churn_rate)),1))*100,1)
+Churn_rates.across.Night.charge_per.call$bins <- rownames(Churn_rates.across.Night.charge_per.call)
+rownames(Churn_rates.across.Night.charge_per.call) <- NULL
+No.of.Night.customers <- aggregate(Phone ~ bin.charge.per.call.Night, project, function(x) length(unique(x)))
+Churn_rates.across.Night.charge_per.call$No.of.customers <- No.of.Night.customers$Phone[match(Churn_rates.across.Night.charge_per.call$bins,No.of.Night.customers$bin.charge.per.call.Night)]
+# Customer leave the network when charge per call is more in Intl --------
+project$charge.per.call.Intl <- project$Intl.Charge/project$Intl.Calls
+project$bin.charge.per.call.Intl <- cut(project$charge.per.call.Intl,5)
+Churn_rates.across.Intl.charge_per.call <- round(as.data.frame.matrix(prop.table((table(project$bin.charge.per.call.Intl,project$Churn_rate)),1))*100,1)
+Churn_rates.across.Intl.charge_per.call$bins <- rownames(Churn_rates.across.Intl.charge_per.call)
+rownames(Churn_rates.across.Intl.charge_per.call) <- NULL
+No.of.Intl.customers <- aggregate(Phone ~ bin.charge.per.call.Intl, project, function(x) length(unique(x)))
+Churn_rates.across.Intl.charge_per.call$No.of.customers <- No.of.Intl.customers$Phone[match(Churn_rates.across.Intl.charge_per.call$bins,No.of.Intl.customers$bin.charge.per.call.Intl)]
+# Charge Per call ---------------------------------------------------------
+Day_charge.per.call<-ggplot(Churn_rates.across.day.charge_per.call,aes(bins,Yes,label = Yes))+geom_bar(stat = "identity")+ggtitle("Day")+geom_text(size=3,vjust=2,color="White")+xlab("Range of Charge per call")
+Eve_charge.per.call<-ggplot(Churn_rates.across.Eve.charge_per.call,aes(bins,Yes,label = Yes))+geom_bar(stat = "identity")+ggtitle("Evening")+geom_text(size=3,vjust=2,color="White")+xlab("Range of Charge per call")
+Night_charge.per.call<-ggplot(Churn_rates.across.Night.charge_per.call,aes(bins,Yes,label = Yes))+geom_bar(stat = "identity")+ggtitle("Night")+geom_text(size=3,vjust=2,color="White")+xlab("Range of Charge per call")
+Intl_charge.per.call<-ggplot(Churn_rates.across.Intl.charge_per.call,aes(bins,Yes,label = Yes))+geom_bar(stat = "identity")+ggtitle("International")+geom_text(size=3,vjust=5,color="White")+xlab("Range of Charge per call")
+plot_grid(Day_charge.per.call, Eve_charge.per.call,Night_charge.per.call,Intl_charge.per.call, nrow = 2,ncol =2,rel_heights = c(2/1,2/1),rel_widths = c(2/2,2/2))
+# Logistic Regression -----------------------------------------------------
+ind <- sample(2,nrow(project),replace = TRUE,prob = c(0.8,0.2))
+project <- project[ind==1,]
+project_test <- project[ind==2,]
+project <- na.omit(project)
+project$Churn_rate_no <- code$col2[match(project$Churn_rate,code$col1)]
+project$Intl_plan_no <- code$col2[match(project$IntlPlan_rate,code$col1)]
+project_test$Churn_rate_no <- code$col2[match(project_test$Churn_rate,code$col1)]
+project_test$Intl_plan_no <- code$col2[match(project_test$IntlPlan_rate,code$col1)]
+output <- glm(Churn_rate_no~bin.charge.per.call.Day,data = project,family = "binomial")
+summary(output)
+predicted <- plogis(predict(output, project_test))
+optCutOff <- optimalCutoff(project_test$Churn_rate_no, predicted)[1]
+misClassError(project_test$Churn_rate_no, predicted, threshold = optCutOff)
+confusionMatrix(project_test$Churn_rate_no, predicted, threshold = optCutOff)
+churn_rate.Yes_low <- filter(project,Churn_rate=="Yes" & bin.charge.per.call.Day %in% c("(0.00267,0.249]","(0.249,0.494]"))
+table(churn_rate.Yes$IntlPlan_rate)
+project$day_high_low <- ifelse(project$bin.charge.per.call.Day=="(0.00267,0.249]"|project$bin.charge.per.call.Day=="(0.249,0.494]","Low",ifelse(project$bin.charge.per.call.Day=="(0.738,0.983]"| project$bin.charge.per.call.Day=="(0.983,1.23]","High","Moderate"))
+project$day_high_low.with.Intl_plan.rate <- ifelse(project$IntlPlan_rate=="Yes"&project$day_high_low=="High","Yes_High",ifelse(project$IntlPlan_rate=="Yes"&project$day_high_low=="Low","Yes_Low",ifelse(project$IntlPlan_rate=="Yes"&project$day_high_low=="Moderate","Yes_Moderate",ifelse(project$IntlPlan_rate=="No"&project$day_high_low=="Moderate","No_Moderate",ifelse(project$IntlPlan_rate=="No"&project$day_high_low=="High","No_High","No_Low")))))
+plotROC(testData$ABOVE50K, predicted)
+sink("output.docx")
+print(summary(output))
+sink()
